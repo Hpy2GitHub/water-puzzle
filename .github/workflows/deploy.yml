@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   # Runs on every push to main
   push:
-    branches: [main]
+    branches: [master]
 
   # Lets you manually trigger a deploy from the Actions tab
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
 
       # 4. Build using the github env file (.env.github)
       - name: Build
-        run: npm run build -- --mode github
+        run: npm run build
 
       # 5. Upload the dist folder as a GitHub Pages artifact
       - name: Upload artifact
