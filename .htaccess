@@ -1,0 +1,12 @@
+Options +FollowSymLinks -MultiViews
+
+RewriteEngine On
+RewriteBase /sandbox/water-puzzle/
+
+# Serve real files and directories directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Send everything else to index.html so React Router can handle routing
+RewriteRule ^ index.html [L]
