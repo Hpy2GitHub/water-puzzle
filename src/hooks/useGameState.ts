@@ -36,6 +36,7 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
   const [history, setHistory] = useState<Tube[][]>([])
   const [hintIndices, setHintIndices] = useState<[number, number] | null>(null)
   const [lastPour, setLastPour] = useState<PourEvent | null>(null)
+  console.log('[useGameState] allowMismatch =', initialConfig.allowMismatch)
   const pourIdRef       = useRef(0)
   const allowMismatchRef = useRef(initialConfig.allowMismatch)
   allowMismatchRef.current = initialConfig.allowMismatch   // always current
@@ -65,6 +66,7 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
     }
 
     // Case 3: valid pour from selectedIndex → clickedIdx
+    console.log('[click] allowMismatch =', allowMismatchRef.current, '| from', selectedIndex, '→', clickedIdx)
     if (canPour(tubes[selectedIndex], tubes[clickedIdx], allowMismatchRef.current)) {
       const color = getTopColor(tubes[selectedIndex]) ?? '#888'
       const nextTubes = pour(tubes, selectedIndex, clickedIdx)
@@ -82,6 +84,7 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
     }
 
     // Case 4: can't pour, but clicked tube has liquid — switch selection
+    console.log('[click] canPour returned false → Case 4 check, clicked has liquid =', tubes[clickedIdx].segments.length > 0)
     if (tubes[clickedIdx].segments.length > 0) {
       sounds.playSelect()
       setSelectedIndex(clickedIdx)

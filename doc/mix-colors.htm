@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="http://localhost/css/gemini-1.css">
+<link rel="stylesheet" href="http://localhost/css/figure.css">
+<link rel="stylesheet" href="http://localhost/css/table.css">
+<link rel="stylesheet" href="http://localhost/css/headfirst.css">
+<link rel="stylesheet" href="http://localhost/css/mobile.css">
+<title>Mix-colors</title>
+</head>
+<body>
+<h1>Mix-colors</h1>
+<p>
+ Mix Colors Toggle  --  Bug Investigation Guide 
+</p>
+<h2>What it should do</h2>
+<p>
+When <b>Allow mismatched pours</b> is ON in config, the user should be able to pour 
+any color onto any other color, as long as the source isn't empty and the 
+destination isn't full. 
+</p>
+<p>
+The badge on the puzzle page shows `mix:ON` when the setting is active, so the 
+config IS reaching the page correctly. The pour is still blocked anyway. 
+</p>
+<hr>
+<h2>The data flow (top to bottom)</h2>
+<h2> 1. Config toggle  --  `src/pages/ConfigPage.tsx`</h2>
+<pre class="code language-tsx">
+onClick={() =&gt; updateConfig({ allowMismatch: !config.allowMismatch })}
+</pre>
+<p>
+Calls `updateConfig` from context. The toggle visually responds and persists to 
+localStorage correctly (confirmed by `mix:ON` in the badge). 
+</p>
+<h2> 2. Context  --  `src/context/GameContext.tsx`</h2>
+<pre class="code language-ts">
+function updateConfig(partial: Partial&lt;GameConfig&gt;) {
+ setConfigState((prev) =&gt; ({...prev,...partial }))
+}
+</pre>
+<p>
+Standard spread update. `allowMismatch` is in `DEFAULT_CONFIG` as `false` so 
+it's always a proper boolean, never `undefined`. 
+</p>
+<h2> 3. Game hook  --  `src/hooks/useGameState.ts`</h2>
+<p>
+This is the most likely place the bug lives. 
+</p>
+<pre class="code language-ts">
+const allowMismatchRef = useRef(initialConfig.allowMismatch)
+allowMismatchRef.current = initialConfig.allowMismatch // line 41
+</pre>
+<p>
+The ref is assigned during render so it should always reflect the latest value. 
+</p>
+<pre class="code language-ts">
+// line 68
+if (canPour(tubes, tubes, allowMismatchRef.current)) {
+</pre>
+<p>
+`allowMismatchRef.current` is read at call time (not captured at creation time), 
+so stale closure is not the issue  --  OR SO WE THINK. See suspects below. 
+</p>
+<h2> 4. Game logic  --  `src/utils/gameLogic.ts`</h2>
+<pre class="code language-ts">
+export function canPour(from: Tube, to: Tube, allowMismatch = false): boolean {
+ if (from.segments.length === 0) return false
+ if (to.segments.length &gt;= to.capacity) return false
+ const toTop = getTopColor(to)
+ if (toTop === null) return true // empty destination always ok
+ if (allowMismatch) return true // &lt;-- the gate we're trying to open
+ return toTop === getTopColor(from)
+}
+</pre>
+<p>
+Logic is correct. The only way this returns `false` with `allowMismatch = true` 
+is if the source is empty or the destination is full. 
+</p>
+<hr>
+<h2>What we've already tried</h2>
+<ul>
+  <li>Confirmed `config.allowMismatch` is `true` in PuzzlePage via the badge (`mix:ON`)</li>
+  <li>Added `allowMismatchRef` to avoid stale closure in `handleTubeClick`</li>
+  <li>TypeScript compiles clean throughout</li>
+</ul>
+<hr>
+<h2>Likely suspects</h2>
+<h2> Suspect A  --  `allowMismatchRef.current` is `false` at call time</h2>
+<p>
+Even though line 41 assigns it during render, React Strict Mode double-invokes 
+renders in development. The second render would re-assign correctly, but if 
+something in between resets it this could fail. 
+</p>
+<p>
+<b>Verify:</b> add a log inside `handleTubeClick` right before the `canPour` call: 
+</p>
+<pre class="code language-ts">
+console.log(' allowMismatch =', allowMismatchRef.current)
+if (canPour(tubes, tubes, allowMismatchRef.current)) {
+</pre>
+<h2> Suspect B  --  `canPour` receives `false` despite the ref being `true`</h2>
+<p>
+The ref reading is fine but something else passes `false` to `canPour`. 
+</p>
+<p>
+<b>Verify:</b> add a log inside `canPour` itself in `src/utils/gameLogic.ts`: 
+</p>
+<pre class="code language-ts">
+export function canPour(from: Tube, to: Tube, allowMismatch = false): boolean {
+ console.log(' allowMismatch =', allowMismatch)...
+}
+</pre>
+<h2> Suspect C  --  the destination bottle IS actually full</h2>
+<p>
+The most boring explanation. `canPour` returns `false` before ever reaching the 
+`allowMismatch` check because `to.segments.length >= to.capacity`. 
+</p>
+<p>
+<b>Verify:</b> the same log above would show  --  also just count the segments visually. 
+</p>
+<h2> Suspect D  --  Case 4 intercepts before Case 3</h2>
+<p>
+Case 4 switches selection to the clicked bottle when `canPour` is false AND the 
+clicked bottle has liquid. This looks like a blocked pour but is actually a 
+re-selection. You'd notice the NEW bottle getting the selection highlight. 
+</p>
+<pre class="code language-ts">
+// Case 4 in handleTubeClick:
+if (tubes.segments.length &gt; 0) {
+ sounds.playSelect()
+ setSelectedIndex(clickedIdx) // looks like a block, is actually a switch
+ return
+}
+</pre>
+<p>
+<b>Verify:</b> after clicking the "destination", does the selection highlight move 
+to it instead of the pour happening? 
+</p>
+<hr>
+<h2>Quickest way to isolate</h2>
+<p>
+Temporarily hardcode `true` in the `canPour` call (line 68 of `useGameState.ts`) 
+to rule out everything except the logic gate itself: 
+</p>
+<pre class="code language-ts">
+// temporary: bypass the ref entirely
+if (canPour(tubes, tubes, true)) {
+</pre>
+<p>
+If this works, the bug is in how `allowMismatchRef.current` is being read or 
+assigned. If it still doesn't work, the destination is full (Suspect C) or Case 4 
+is intercepting (Suspect D). 
+</p>
+<hr>
+<h2>Files to edit</h2>
+<table border="1">
+<thead><tr>
+<th>File</th>
+<th>What to look at</th>
+</tr></thead><tbody>
+<tr>
+<td>`src/hooks/useGameState.ts`</td>
+<td>lines 4041 (ref), line 68 (canPour call), line 85 (Case 4)</td>
+</tr>
+<tr>
+<td>`src/utils/gameLogic.ts`</td>
+<td>lines 2026 (canPour)</td>
+</tr>
+<tr>
+<td>`src/pages/ConfigPage.tsx`</td>
+<td>toggle onClick</td>
+</tr>
+<tr>
+<td>`src/context/GameContext.tsx`</td>
+<td>updateConfig</td>
+</tr>
+</tbody></table>
+</body>
+</html>

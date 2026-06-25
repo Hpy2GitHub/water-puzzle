@@ -18,12 +18,13 @@ export function getTopRunLength(tube: Tube): number {
 }
 
 export function canPour(from: Tube, to: Tube, allowMismatch = false): boolean {
-  if (from.segments.length === 0) return false
-  if (to.segments.length >= to.capacity) return false
+  if (from.segments.length === 0) { console.log('[canPour] false — source empty'); return false }
+  if (to.segments.length >= to.capacity) { console.log('[canPour] false — dest full'); return false }
   const toTop = getTopColor(to)
-  if (toTop === null) return true                      // destination is empty
-  if (allowMismatch) return true                       // skip color check
-  return toTop === getTopColor(from)                   // colors must match
+  if (toTop === null) { console.log('[canPour] true — dest empty'); return true }
+  console.log('[canPour] allowMismatch =', allowMismatch, '| fromTop =', getTopColor(from), '| toTop =', toTop)
+  if (allowMismatch) return true
+  return toTop === getTopColor(from)
 }
 
 // Returns new immutable Tube[] — does not mutate
