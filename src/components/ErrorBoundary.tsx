@@ -26,7 +26,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       error: null,
       errorInfo: null,
       retryCount: 0,
-      showDetails: process.env.NODE_ENV === 'development' // Show details by default in dev
+      showDetails: import.meta.env.DEV // Show details by default in dev
     };
   }
 
@@ -63,7 +63,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       error: null,
       errorInfo: null,
       retryCount: this.state.retryCount + 1,
-      showDetails: process.env.NODE_ENV === 'development'
+      showDetails: import.meta.env.DEV
     });
 
     if (this.props.onReset) {
@@ -98,7 +98,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   };
 
   render(): ReactNode {
-    const { hasError, error, errorInfo, retryCount, showDetails } = this.state;
+    const { hasError } = this.state;
     const { children, fallback } = this.props;
 
     if (hasError) {
@@ -114,7 +114,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
   private renderDefaultErrorUI(): ReactNode {
     const { error, errorInfo, retryCount, showDetails } = this.state;
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
 
     return (
       <div className="error-boundary-container">
