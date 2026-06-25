@@ -6,7 +6,7 @@ import PuzzlePage from './pages/PuzzlePage'
 export default function App() {
   return (
     <GameProvider>
-      <BrowserRouter basename="/water-puzzle">
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<ConfigPage />} />
           <Route path="/puzzle" element={<PuzzlePage />} />

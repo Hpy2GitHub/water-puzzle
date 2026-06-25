@@ -41,7 +41,7 @@ jobs:
 
       # 4. Build using the github env file (.env.github)
       - name: Build
-        run: npm run build
+        run: npm run build -- --mode github
 
       # 5. Upload the dist folder as a GitHub Pages artifact
       - name: Upload artifact
