@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import type { GameConfig, Tube } from '../types/game'
-import { canPour, pour, isPuzzleSolved, findHint, getTopColor } from '../utils/gameLogic'
+import { canPour, pour, isPuzzleSolved, findHint, getTopColor, getTopRunLength } from '../utils/gameLogic'
 import { generatePuzzle } from '../utils/puzzleGenerator'
 import { useSounds } from './useSounds'
 
@@ -11,6 +11,7 @@ export interface PourEvent {
   toIdx: number
   color: string   // color that was poured — captured before state update
   id: number      // ever-incrementing so same-source pours still re-trigger effects
+  amount: number  // segments poured — for drain animation
 }
 
 export interface GameStateReturn {
@@ -69,13 +70,16 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
     console.log('[click] allowMismatch =', allowMismatchRef.current, '| from', selectedIndex, '→', clickedIdx)
     if (canPour(tubes[selectedIndex], tubes[clickedIdx], allowMismatchRef.current)) {
       const color = getTopColor(tubes[selectedIndex]) ?? '#888'
+      const runLen = getTopRunLength(tubes[selectedIndex])
+      const space = tubes[clickedIdx].capacity - tubes[clickedIdx].segments.length
+      const amount = Math.min(runLen, space)
       const nextTubes = pour(tubes, selectedIndex, clickedIdx)
       const pourId = ++pourIdRef.current
       setHistory((h) => [...h.slice(-MAX_UNDO), tubes])
       setTubes(nextTubes)
       setMoveCount((c) => c + 1)
       setSelectedIndex(null)
-      setLastPour({ fromIdx: selectedIndex, toIdx: clickedIdx, color, id: pourId })
+      setLastPour({ fromIdx: selectedIndex, toIdx: clickedIdx, color, id: pourId, amount })
       // Clear after animation completes so idle/select state can resume on those bottles
       setTimeout(() => setLastPour(p => p?.id === pourId ? null : p), 1800)
       sounds.playPour()

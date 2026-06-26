@@ -49,8 +49,9 @@ function AnimatedBottle({
   const controls   = useAnimation()               // this bottle's own controls — never shared
   const posRef     = useRef<HTMLDivElement>(null) // stays fixed for rect computation
   const motionRef  = useRef<HTMLDivElement>(null) // ref to the animated element for transformOrigin mutation
-  const [stream,   setStream]   = useState<StreamProps | null>(null)
-  const [fillLine, setFillLine] = useState<FillLineProps | null>(null)
+  const [stream,      setStream]      = useState<StreamProps | null>(null)
+  const [fillLine,    setFillLine]    = useState<FillLineProps | null>(null)
+  const [drainProps,  setDrainProps]  = useState<{amount: number; color: string} | null>(null)
 
   const isSource = lastPour?.fromIdx === idx
   const isDest   = lastPour?.toIdx   === idx
@@ -88,12 +89,29 @@ function AnimatedBottle({
         const destRect = getBottleRect(lastPour.toIdx)
         if (!srcRect || !destRect) return
 
+        // Show drain overlay immediately so the segments appear intact during lift/glide/tip.
+        // The motion.rect has a matching delay so it only starts shrinking once the bottle is tipped.
+        if (lastPour.amount > 0) setDrainProps({ amount: lastPour.amount, color: lastPour.color })
+
         const xDelta = (destRect.left + destRect.width  / 2)
                      - (srcRect.left  + srcRect.width   / 2)
         const dir = xDelta >= 0 ? 1 : -1
 
+        // Downward cross-row pour (not directly below): descend into the row gap first so the
+        // bottle doesn't glide through other top-row bottles during the horizontal move.
+        // All other pours: lift upward as before.
+        const LIFT_MARGIN = 60
+        const isDownwardCrossRow = destRect.top > srcRect.bottom + 20 && Math.abs(xDelta) >= width / 2
+        const yMove = isDownwardCrossRow
+          ? srcRect.height + 30   // descend past bottle + number label below the top row
+          : -Math.max(70, srcRect.top - destRect.top + LIFT_MARGIN) // negative → lift
+
+        console.log('[pour-anim] from:', lastPour.fromIdx, 'to:', lastPour.toIdx)
+        console.log('[pour-anim] srcRect.top:', srcRect.top.toFixed(0), '| srcRect.bottom:', srcRect.bottom.toFixed(0), '| destRect.top:', destRect.top.toFixed(0))
+        console.log('[pour-anim] xDelta:', xDelta.toFixed(0), '| yMove:', yMove.toFixed(0), '| isDownwardCrossRow:', isDownwardCrossRow, '| dir:', dir)
+
         if (cancelled) return
-        await controls.start({ y: -70, transition: { duration: 0.18, ease: 'easeOut' } })
+        await controls.start({ y: yMove, transition: { duration: 0.18, ease: 'easeOut' } })
         if (cancelled) return
         await controls.start({ x: xDelta, transition: { duration: 0.26, ease: 'easeInOut' } })
         if (cancelled) return
@@ -101,9 +119,12 @@ function AnimatedBottle({
         await controls.start({ rotate: dir * 88, transition: { duration: 0.28, ease: 'easeIn' } })
         const dim          = getShapeDimensions(shape)
         const openingPx    = dim.liquidTop * width / dim.vbW + JOINT_OFFSET_PX
-        const neckY        = srcRect.top  - 70 + openingPx
-        const destOpeningY = destRect.top      + openingPx
-        if (!cancelled) setStream({ centerX: destRect.left + destRect.width / 2, top: neckY, height: Math.max(0, destOpeningY - neckY), color: lastPour.color })
+        const neckY        = srcRect.top + yMove + openingPx
+        const destOpeningY = destRect.top        + openingPx
+        const streamTop    = Math.min(neckY, destOpeningY)
+        const streamHeight = Math.abs(destOpeningY - neckY)
+        console.log('[pour-anim] neckY:', neckY.toFixed(0), '| destOpeningY:', destOpeningY.toFixed(0), '| streamTop:', streamTop.toFixed(0), '| streamH:', streamHeight.toFixed(0))
+        if (!cancelled) setStream({ centerX: destRect.left + destRect.width / 2, top: streamTop, height: streamHeight, color: lastPour.color })
         const holdWithPause = (ms: number) => new Promise<void>(r => {
           const start = Date.now()
           const tick = () => {
@@ -114,7 +135,7 @@ function AnimatedBottle({
           tick()
         })
         await holdWithPause(500)
-        if (!cancelled) setStream(null)
+        if (!cancelled) { setStream(null); setDrainProps(null) }
         if (cancelled) return
         await controls.start({ rotate: 0, transition: { duration: 0.22, ease: 'easeOut' } })
         if (motionRef.current) motionRef.current.style.transformOrigin = '50% 50%'
@@ -154,7 +175,7 @@ function AnimatedBottle({
       void runReceive()
     }
 
-    return () => { cancelled = true }
+    return () => { cancelled = true; setDrainProps(null) }
   }, [lastPour?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -173,6 +194,8 @@ function AnimatedBottle({
           isSelected={isSelected}
           hintRole={hintRole}
           width={width}
+          drainAmount={isSource ? drainProps?.amount : undefined}
+          drainColor={isSource ? drainProps?.color : undefined}
         />
       </motion.div>
 
@@ -303,8 +326,10 @@ export default function PuzzlePage() {
           <motion.div key="hint"
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             className="text-center text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/20 py-1.5 px-4">
-            Pour from the <span className="font-semibold text-amber-600">amber bottle</span> into the{' '}
-            <span className="font-semibold text-green-600">green bottle</span>
+            Pour from bottle{' '}
+            <span className="font-semibold text-amber-400">{hintIndices![0] + 1}</span>
+            {' '}into bottle{' '}
+            <span className="font-semibold text-green-400">{hintIndices![1] + 1}</span>
           </motion.div>
         )}
         {!hintIndices && noMovesLeft(tubes, config.allowMismatch) && (
@@ -316,28 +341,34 @@ export default function PuzzlePage() {
         )}
       </AnimatePresence>
 
-      {/* No max-width cap so bottles wrap naturally at any viewport width */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <div className="flex flex-wrap justify-center gap-5">
+        <div className="grid gap-x-5 gap-y-24 justify-items-center"
+          style={{ gridTemplateColumns: `repeat(${Math.ceil(tubes.length / 2)}, auto)` }}>
           {tubes.map((tube, idx) => (
-            <AnimatedBottle
-              key={idx}
-              idx={idx}
-              tube={tube}
-              shape={config.bottleShape}
-              isSelected={selectedIndex === idx}
-              hintRole={
-                hintIndices?.[0] === idx ? 'from'
-                : hintIndices?.[1] === idx ? 'to'
-                : undefined
-              }
-              onClick={() => handleTubeClick(idx)}
-              width={bottleWidth}
-              lastPour={lastPour}
-              getBottleRect={getBottleRect}
-              registerRef={registerRef}
-              pourPausedRef={pourPausedRef}
-            />
+            <div key={idx} className="flex flex-col items-center gap-1">
+              <AnimatedBottle
+                idx={idx}
+                tube={tube}
+                shape={config.bottleShape}
+                isSelected={selectedIndex === idx}
+                hintRole={
+                  hintIndices?.[0] === idx ? 'from'
+                  : hintIndices?.[1] === idx ? 'to'
+                  : undefined
+                }
+                onClick={() => handleTubeClick(idx)}
+                width={bottleWidth}
+                lastPour={lastPour}
+                getBottleRect={getBottleRect}
+                registerRef={registerRef}
+                pourPausedRef={pourPausedRef}
+              />
+              <span className={`text-[10px] font-medium tabular-nums select-none leading-none ${
+                hintIndices?.[0] === idx ? 'text-amber-400' :
+                hintIndices?.[1] === idx ? 'text-green-400' :
+                'text-blue-300/70'
+              }`}>{idx + 1}</span>
+            </div>
           ))}
         </div>
       </main>
@@ -362,7 +393,7 @@ export default function PuzzlePage() {
                   Change Config
                 </button>
                 <button onClick={() => setViewingSolution(true)}
-                  className="w-full py-2 text-blue-300/50 hover:text-blue-200/80 text-sm font-medium transition-colors">
+                  className="w-full py-2 text-blue-300/70 hover:text-blue-200/80 text-sm font-medium transition-colors">
                   Pause — view puzzle
                 </button>
               </div>

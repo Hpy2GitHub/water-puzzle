@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import type { BottleShape } from '../../types/game'
 
 // Each bottle shape is defined by:
@@ -83,9 +84,11 @@ interface BottleProps {
   hintRole?: HintRole
   onClick?: () => void
   width?: number
+  drainAmount?: number  // segments currently animating out of the source bottle
+  drainColor?: string
 }
 
-export function Bottle({ shape, segments, capacity, isSelected = false, hintRole, onClick, width = 60 }: BottleProps) {
+export function Bottle({ shape, segments, capacity, isSelected = false, hintRole, onClick, width = 60, drainAmount, drainColor }: BottleProps) {
   const def = SHAPES[shape]
   const [_vbX, _vbY, vbW, vbH] = def.viewBox.split(' ').map(Number)
   const height = width * (vbH / vbW)
@@ -151,6 +154,23 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         />
       </g>
 
+      {/* Drain animation — poured segments shrinking out toward the opening */}
+      {drainAmount && drainAmount > 0 && drainColor && (
+        <g clipPath={`url(#${clipId})`}>
+          <motion.rect
+            x={def.liquidLeft}
+            y={def.liquidBot - (segments.length + drainAmount) * segmentH}
+            width={liquidWidth}
+            height={drainAmount * segmentH}
+            fill={drainColor}
+            initial={{ scaleY: 1, opacity: 1 }}
+            animate={{ scaleY: 0, opacity: 0 }}
+            transition={{ delay: 0.72, duration: 0.42, ease: 'easeIn' }}
+            style={{ transformOrigin: '50% 0%' }}
+          />
+        </g>
+      )}
+
       {/* Liquid surface sheen */}
       {segments.length > 0 && (
         <g clipPath={`url(#${clipId})`}>
@@ -173,6 +193,19 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
         strokeLinecap="round"
+      />
+
+      {/* 3D rim ellipse at the bottle opening */}
+      <ellipse
+        cx={(def.liquidLeft + def.liquidRight) / 2}
+        cy={def.liquidTop}
+        rx={Math.max(1, (def.liquidRight - def.liquidLeft) / 2 - 1)}
+        ry={2}
+        fill="white"
+        fillOpacity={0.22}
+        stroke={strokeColor}
+        strokeWidth={0.75}
+        strokeOpacity={0.5}
       />
     </svg>
   )
