@@ -228,7 +228,7 @@ export function ShapePreview({ shape, isSelected, onClick }: ShapePreviewProps) 
           : 'border-white/15 hover:border-white/30 bg-white/5'
       }`}
     >
-      <Bottle shape={shape} segments={[]} capacity={4} width={40} />
+      <Bottle shape={shape} segments={[]} capacity={4} width={32} />
       <span className={`text-xs font-medium ${isSelected ? 'text-cyan-300' : 'text-blue-200/60'}`}>
         {shape === 'test-tube' ? 'Test Tube' : shape.charAt(0).toUpperCase() + shape.slice(1)}
       </span>

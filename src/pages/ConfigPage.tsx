@@ -16,6 +16,22 @@ export default function ConfigPage() {
 
   const [editingColorIndex, setEditingColorIndex] = useState(-1)
   const pickerRef = useRef<HTMLDivElement>(null)
+  const cardRef   = useRef<HTMLDivElement>(null)
+  const [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    function update() {
+      const el = cardRef.current
+      if (!el) return
+      el.style.zoom = ''                            // reset so we measure natural height
+      const naturalH = el.scrollHeight
+      const available = window.innerHeight - 32    // subtract outer p-4 × 2
+      setZoom(naturalH > available ? available / naturalH : 1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   useEffect(() => {
     if (editingColorIndex === -1) return
@@ -59,16 +75,16 @@ export default function ConfigPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] rounded-3xl shadow-2xl shadow-black/50 p-8 w-full max-w-md">
+      <div ref={cardRef} style={{ zoom }} className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] rounded-3xl shadow-2xl shadow-black/50 p-6 w-full max-w-md">
 
         {/* Header */}
         <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
           Water Sort Puzzle
         </h1>
-        <p className="text-sm text-cyan-300/60 text-center mb-8">Configure your puzzle</p>
+        <p className="text-sm text-cyan-300/60 text-center mb-5">Configure your puzzle</p>
 
         {/* Colors count */}
-        <section className="mb-6">
+        <section className="mb-4">
           <label className="block text-sm font-semibold text-blue-100/80 mb-2">
             Colors <span className="font-black text-cyan-400">{config.numColors}</span>
           </label>
@@ -86,7 +102,7 @@ export default function ConfigPage() {
         </section>
 
         {/* Color palette */}
-        <section className="mb-6">
+        <section className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-blue-100/80">Colors (click to edit)</span>
             <button
@@ -148,7 +164,7 @@ export default function ConfigPage() {
         </section>
 
         {/* Empty bottles */}
-        <section className="mb-6">
+        <section className="mb-4">
           <span className="block text-sm font-semibold text-blue-100/80 mb-2">
             Empty bottles <span className="text-xs font-normal text-blue-300/40">(total: {totalBottles})</span>
           </span>
@@ -170,7 +186,7 @@ export default function ConfigPage() {
         </section>
 
         {/* Segments per bottle */}
-        <section className="mb-6">
+        <section className="mb-4">
           <label className="block text-sm font-semibold text-blue-100/80 mb-2">
             Segments per bottle <span className="font-black text-cyan-400">{config.segmentsPerBottle}</span>
           </label>
@@ -188,7 +204,7 @@ export default function ConfigPage() {
         </section>
 
         {/* Bottle shape */}
-        <section className="mb-8">
+        <section className="mb-5">
           <span className="block text-sm font-semibold text-blue-100/80 mb-2">Bottle shape</span>
           <div className="grid grid-cols-4 gap-2">
             {SHAPES.map((shape) => (
@@ -203,7 +219,7 @@ export default function ConfigPage() {
         </section>
 
         {/* Allow mismatched pours */}
-        <section className="mb-8">
+        <section className="mb-5">
           <label className="flex items-center justify-between cursor-pointer select-none">
             <div>
               <span className="block text-sm font-semibold text-blue-100/80">Allow mismatched pours</span>
@@ -229,7 +245,7 @@ export default function ConfigPage() {
         {/* Start button */}
         <button
           onClick={handleStart}
-          className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-2xl text-lg transition-all shadow-lg shadow-cyan-900/30"
+          className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-2xl text-lg transition-all shadow-lg shadow-cyan-900/30"
         >
           Start Game →
         </button>

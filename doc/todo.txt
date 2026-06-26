@@ -1,4 +1,0 @@
-1) add an ellipse to the top of the containers to make more of a 3D effect
-2) when I resize the page 2 make 2 rows of bottles the bottom bottles pour into the body of the upper for flasks
-3) number the bottles and change the advice to use the numbers
-4) animate the liquid  pouring out of the  top container by makeing that rotated block of color shrink instead of disappearing instantly
