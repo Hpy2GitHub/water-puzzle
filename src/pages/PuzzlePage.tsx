@@ -8,8 +8,6 @@ import { findHint } from '../utils/gameLogic'
 import type { Tube, BottleShape } from '../types/game'
 import type { HintRole } from '../components/bottles/BottleShapes'
 
-const _LOADED_AT = new Date().toLocaleTimeString()
-
 const POUR_PIVOT_Y_PCT  = 3   // rotation pivot — keeps neck over destination during tip
 const JOINT_OFFSET_PX   = 20  // shifts stream bottom + fill-line top together (px into bottle)
 
@@ -245,6 +243,12 @@ export default function PuzzlePage() {
   } = useGameState(config)
 
   const [muted, setMuted] = useState(false)
+  const [viewingSolution, setViewingSolution] = useState(false)
+
+  // Show the panel fresh each time a new puzzle is solved
+  useEffect(() => {
+    if (isSolved) setViewingSolution(false)
+  }, [isSolved])
 
   const bottleRefs    = useRef<Map<number, HTMLElement>>(new Map())
   const pourPausedRef = useRef(false)
@@ -270,19 +274,18 @@ export default function PuzzlePage() {
   const bottleWidth = 62
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 flex flex-col">
+    <div className="min-h-screen flex flex-col">
 
-      <header className="flex items-center justify-between px-4 py-3 bg-white/70 backdrop-blur-sm shadow-sm">
+      <header className="flex items-center justify-between px-4 py-3 bg-black/30 backdrop-blur-sm border-b border-white/10">
         <button onClick={() => navigate('/')}
-          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+          className="text-sm font-semibold text-cyan-400 hover:text-cyan-300 transition-colors">
           ← Config
         </button>
         <div className="text-center">
-          <p className="text-xs font-mono text-indigo-400 leading-none">
-            v5 · {_LOADED_AT} · mix:{config.allowMismatch ? 'ON' : 'OFF'}
+          <p className="text-base font-black text-white leading-none tracking-tight">Water Sort</p>
+          <p className="text-[11px] text-cyan-400/80 leading-none mt-0.5">
+            {moveCount} {moveCount === 1 ? 'move' : 'moves'}
           </p>
-          <p className="text-xs text-gray-400 leading-none">Moves</p>
-          <p className="text-lg font-bold text-gray-700">{moveCount}</p>
         </div>
         <div className="flex items-center gap-2">
           <IconButton onClick={undo}         title="Undo"            disabled={moveCount === 0}>↩</IconButton>
@@ -299,7 +302,7 @@ export default function PuzzlePage() {
         {hintIndices && (
           <motion.div key="hint"
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="text-center text-xs text-amber-700 bg-amber-50 border-b border-amber-200 py-1.5 px-4">
+            className="text-center text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/20 py-1.5 px-4">
             Pour from the <span className="font-semibold text-amber-600">amber bottle</span> into the{' '}
             <span className="font-semibold text-green-600">green bottle</span>
           </motion.div>
@@ -307,7 +310,7 @@ export default function PuzzlePage() {
         {!hintIndices && noMovesLeft(tubes, config.allowMismatch) && (
           <motion.div key="no-moves"
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="text-center text-xs text-red-600 bg-red-50 border-b border-red-200 py-1.5">
+            className="text-center text-xs text-red-300 bg-red-500/10 border-b border-red-500/20 py-1.5">
             No moves available — try undoing or start a new game
           </motion.div>
         )}
@@ -340,23 +343,27 @@ export default function PuzzlePage() {
       </main>
 
       <AnimatePresence>
-        {isSolved && (
+        {isSolved && !viewingSolution && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-20">
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-20">
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-              className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-xs w-full mx-4">
+              className="bg-[#0d1f38]/90 backdrop-blur-xl border border-white/15 rounded-3xl shadow-2xl p-8 text-center max-w-xs w-full mx-4">
               <div className="text-5xl mb-3">🎉</div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-1">Solved!</h2>
-              <p className="text-gray-500 text-sm mb-6">{moveCount} {moveCount === 1 ? 'move' : 'moves'}</p>
+              <h2 className="text-2xl font-black text-white mb-1">Solved!</h2>
+              <p className="text-blue-300/70 text-sm mb-6">{moveCount} {moveCount === 1 ? 'move' : 'moves'}</p>
               <div className="flex flex-col gap-2">
                 <button onClick={() => newGame()}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-900/30">
                   New Game
                 </button>
                 <button onClick={() => navigate('/')}
-                  className="w-full py-2.5 border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium rounded-xl transition-colors">
+                  className="w-full py-2.5 border border-white/15 text-blue-200/70 hover:bg-white/10 font-medium rounded-xl transition-colors">
                   Change Config
+                </button>
+                <button onClick={() => setViewingSolution(true)}
+                  className="w-full py-2 text-blue-300/50 hover:text-blue-200/80 text-sm font-medium transition-colors">
+                  Pause — view puzzle
                 </button>
               </div>
             </motion.div>
@@ -374,9 +381,9 @@ function IconButton({ onClick, title, disabled = false, children }: {
   return (
     <button onClick={onClick} title={title} disabled={disabled}
       className="w-8 h-8 flex items-center justify-center rounded-lg text-base
-                 bg-white border border-gray-200 shadow-sm
-                 hover:bg-indigo-50 hover:border-indigo-300
-                 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                 bg-white/10 border border-white/15
+                 hover:bg-white/20 hover:border-white/25
+                 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
       {children}
     </button>
   )

@@ -94,13 +94,14 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
   const segmentH = liquidHeight / capacity
   const liquidWidth = def.liquidRight - def.liquidLeft
 
-  const clipId = `clip-${shape}-${Math.random().toString(36).slice(2, 7)}`
+  const clipId  = `clip-${shape}-${Math.random().toString(36).slice(2, 7)}`
+  const glossId = `g-${clipId}`
 
   const strokeColor =
-    isSelected   ? '#2563eb' :
-    hintRole === 'from' ? '#d97706' :
-    hintRole === 'to'   ? '#16a34a' :
-    '#374151'
+    isSelected          ? '#22d3ee' :
+    hintRole === 'from' ? '#f59e0b' :
+    hintRole === 'to'   ? '#34d399' :
+    '#7ba8c8'
 
   const strokeWidth = (isSelected || hintRole) ? 3 : 2
 
@@ -117,6 +118,11 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         <clipPath id={clipId}>
           <path d={def.clipPathD} />
         </clipPath>
+        <linearGradient id={glossId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
+          <stop offset="60%"  stopColor="white" stopOpacity="0.06" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </linearGradient>
       </defs>
 
       {/* Liquid segments — clipped to bottle shape, rendered bottom-up */}
@@ -132,6 +138,32 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
           />
         ))}
       </g>
+
+      {/* Glass specular highlight — left-side reflection streak */}
+      <g clipPath={`url(#${clipId})`}>
+        <rect
+          x={def.liquidLeft + 2}
+          y={def.liquidTop}
+          width={(def.liquidRight - def.liquidLeft) * 0.2}
+          height={def.liquidBot - def.liquidTop}
+          fill={`url(#${glossId})`}
+          rx={2}
+        />
+      </g>
+
+      {/* Liquid surface sheen */}
+      {segments.length > 0 && (
+        <g clipPath={`url(#${clipId})`}>
+          <rect
+            x={def.liquidLeft}
+            y={def.liquidBot - segments.length * segmentH}
+            width={liquidWidth}
+            height={Math.min(segmentH * 0.28, 5)}
+            fill="white"
+            fillOpacity={0.2}
+          />
+        </g>
+      )}
 
       {/* Bottle outline on top so it overlaps the liquid edges */}
       <path
@@ -159,12 +191,12 @@ export function ShapePreview({ shape, isSelected, onClick }: ShapePreviewProps) 
       onClick={onClick}
       className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-colors ${
         isSelected
-          ? 'border-blue-500 bg-blue-50'
-          : 'border-gray-200 hover:border-gray-400 bg-white'
+          ? 'border-cyan-400 bg-cyan-500/20'
+          : 'border-white/15 hover:border-white/30 bg-white/5'
       }`}
     >
       <Bottle shape={shape} segments={[]} capacity={4} width={40} />
-      <span className={`text-xs font-medium ${isSelected ? 'text-blue-600' : 'text-gray-500'}`}>
+      <span className={`text-xs font-medium ${isSelected ? 'text-cyan-300' : 'text-blue-200/60'}`}>
         {shape === 'test-tube' ? 'Test Tube' : shape.charAt(0).toUpperCase() + shape.slice(1)}
       </span>
     </button>
