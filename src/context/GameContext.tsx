@@ -15,7 +15,10 @@ function loadConfig(): GameConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return DEFAULT_CONFIG
-    return { ...DEFAULT_CONFIG, ...(JSON.parse(raw) as Partial<GameConfig>) }
+    const stored = JSON.parse(raw) as Partial<GameConfig>
+    // Migrate old orange (#f97316) to white
+    if (stored.colors) stored.colors = stored.colors.map(c => c === '#f97316' ? '#ffffff' : c)
+    return { ...DEFAULT_CONFIG, ...stored }
   } catch {
     return DEFAULT_CONFIG
   }

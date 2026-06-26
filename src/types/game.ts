@@ -28,7 +28,7 @@ export const DEFAULT_COLORS: string[] = [
   '#7f31c9',
   '#eab308',
   '#ec4899',
-  '#ede1d9',
+  '#ffffff',
 ]
 
 export const DEFAULT_CONFIG: GameConfig = {

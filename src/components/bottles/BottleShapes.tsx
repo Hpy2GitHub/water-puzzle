@@ -16,48 +16,38 @@ interface ShapeDef {
   liquidBot: number   // Y where liquid area ends (bottom)
   liquidLeft: number
   liquidRight: number
+  openingLeft: number  // X of the bottle mouth's left edge (for the cork)
+  openingRight: number // X of the bottle mouth's right edge
 }
 
 const SHAPES: Record<BottleShape, ShapeDef> = {
   'test-tube': {
     viewBox: '0 0 60 130',
-    // Straight sides, rounded bottom
     clipPathD: 'M 14,4 L 14,98 Q 14,116 30,116 Q 46,116 46,98 L 46,4 Z',
     outlineD:  'M 14,4 L 14,98 Q 14,116 30,116 Q 46,116 46,98 L 46,4',
-    liquidTop: 4,
-    liquidBot: 116,
-    liquidLeft: 14,
-    liquidRight: 46,
+    liquidTop: 4, liquidBot: 116, liquidLeft: 14, liquidRight: 46,
+    openingLeft: 14, openingRight: 46,
   },
   'flask': {
     viewBox: '0 0 70 130',
-    // Narrow neck, wide conical body
     clipPathD: 'M 27,4 L 27,32 L 6,112 Q 6,120 35,120 Q 64,120 64,112 L 43,32 L 43,4 Z',
     outlineD:  'M 27,4 L 27,32 L 6,112 Q 6,120 35,120 Q 64,120 64,112 L 43,32 L 43,4',
-    liquidTop: 4,
-    liquidBot: 120,
-    liquidLeft: 6,
-    liquidRight: 64,
+    liquidTop: 4, liquidBot: 120, liquidLeft: 6, liquidRight: 64,
+    openingLeft: 27, openingRight: 43,   // narrow neck
   },
   'wine': {
     viewBox: '0 0 60 140',
-    // Cylindrical body, curved shoulder, narrow neck
     clipPathD: 'M 22,4 L 22,42 Q 12,58 12,70 L 12,126 Q 12,134 30,134 Q 48,134 48,126 L 48,70 Q 48,58 38,42 L 38,4 Z',
     outlineD:  'M 22,4 L 22,42 Q 12,58 12,70 L 12,126 Q 12,134 30,134 Q 48,134 48,126 L 48,70 Q 48,58 38,42 L 38,4',
-    liquidTop: 4,
-    liquidBot: 134,
-    liquidLeft: 12,
-    liquidRight: 48,
+    liquidTop: 4, liquidBot: 134, liquidLeft: 12, liquidRight: 48,
+    openingLeft: 22, openingRight: 38,   // narrow neck
   },
   'beaker': {
     viewBox: '0 0 70 120',
-    // Wide cylinder, slightly tapered, flat bottom — lab beaker
     clipPathD: 'M 10,4 L 8,108 Q 8,116 35,116 Q 62,116 62,108 L 60,4 Z',
     outlineD:  'M 10,4 L 8,108 Q 8,116 35,116 Q 62,116 62,108 L 60,4',
-    liquidTop: 4,
-    liquidBot: 116,
-    liquidLeft: 8,
-    liquidRight: 62,
+    liquidTop: 4, liquidBot: 116, liquidLeft: 8, liquidRight: 62,
+    openingLeft: 10, openingRight: 60,
   },
 }
 
@@ -97,8 +87,7 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
   const segmentH = liquidHeight / capacity
   const liquidWidth = def.liquidRight - def.liquidLeft
 
-  const clipId  = `clip-${shape}-${Math.random().toString(36).slice(2, 7)}`
-  const glossId = `g-${clipId}`
+  const clipId = `clip-${shape}-${Math.random().toString(36).slice(2, 7)}`
 
   const strokeColor =
     isSelected          ? '#22d3ee' :
@@ -121,11 +110,6 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         <clipPath id={clipId}>
           <path d={def.clipPathD} />
         </clipPath>
-        <linearGradient id={glossId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="white" stopOpacity="0.35" />
-          <stop offset="60%"  stopColor="white" stopOpacity="0.06" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </linearGradient>
       </defs>
 
       {/* Liquid segments — clipped to bottle shape, rendered bottom-up */}
@@ -140,18 +124,6 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
             fill={color}
           />
         ))}
-      </g>
-
-      {/* Glass specular highlight — left-side reflection streak */}
-      <g clipPath={`url(#${clipId})`}>
-        <rect
-          x={def.liquidLeft + 2}
-          y={def.liquidTop}
-          width={(def.liquidRight - def.liquidLeft) * 0.2}
-          height={def.liquidBot - def.liquidTop}
-          fill={`url(#${glossId})`}
-          rx={2}
-        />
       </g>
 
       {/* Drain animation — poured segments shrinking out toward the opening */}
@@ -171,20 +143,6 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         </g>
       )}
 
-      {/* Liquid surface sheen */}
-      {segments.length > 0 && (
-        <g clipPath={`url(#${clipId})`}>
-          <rect
-            x={def.liquidLeft}
-            y={def.liquidBot - segments.length * segmentH}
-            width={liquidWidth}
-            height={Math.min(segmentH * 0.28, 5)}
-            fill="white"
-            fillOpacity={0.2}
-          />
-        </g>
-      )}
-
       {/* Bottle outline on top so it overlaps the liquid edges */}
       <path
         d={def.outlineD}
@@ -194,6 +152,28 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+
+      {/* Cork — shown when the bottle is solved (full, single colour) */}
+      {segments.length === capacity && new Set(segments).size === 1 && (
+        <>
+          <rect
+            x={def.openingLeft + 1}
+            y={def.liquidTop - 6}
+            width={def.openingRight - def.openingLeft - 2}
+            height={8}
+            fill="#c8a057"
+            stroke="#8c6422"
+            strokeWidth={0.75}
+            rx={2}
+          />
+          {/* grain line across the cork face */}
+          <line
+            x1={def.openingLeft + 3}  y1={def.liquidTop - 2}
+            x2={def.openingRight - 3} y2={def.liquidTop - 2}
+            stroke="#8c6422" strokeWidth={0.6} strokeOpacity={0.5}
+          />
+        </>
+      )}
 
       {/* 3D rim ellipse at the bottle opening */}
       <ellipse

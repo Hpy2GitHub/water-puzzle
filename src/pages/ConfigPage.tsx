@@ -73,6 +73,13 @@ export default function ConfigPage() {
 
   const totalBottles = config.numColors + config.extraBottles
 
+  const activeColors = config.colors.slice(0, config.numColors)
+  const colorCounts = activeColors.reduce<Record<string, number>>(
+    (acc, c) => ({ ...acc, [c]: (acc[c] ?? 0) + 1 }), {}
+  )
+  const isDuplicate = (c: string) => (colorCounts[c] ?? 0) > 1
+  const hasDuplicates = activeColors.some(isDuplicate)
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div ref={cardRef} style={{ zoom }} className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] rounded-3xl shadow-2xl shadow-black/50 p-6 w-full max-w-md">
@@ -115,6 +122,7 @@ export default function ConfigPage() {
           <div className="relative flex flex-wrap gap-2">
             {config.colors.slice(0, config.numColors).map((color, i) => {
               const tooDark = isTooCloseToBackground(color)
+              const dupe    = isDuplicate(color)
               return (
                 <button
                   key={i}
@@ -122,6 +130,8 @@ export default function ConfigPage() {
                   className={`relative w-10 h-10 rounded-full border-4 transition-transform hover:scale-110 ${
                     tooDark
                       ? 'border-red-400 scale-105'
+                      : dupe
+                      ? 'border-amber-400 scale-105'
                       : editingColorIndex === i ? 'border-cyan-400 scale-110' : 'border-white/20 shadow-md'
                   }`}
                   style={{ backgroundColor: color }}
@@ -130,6 +140,11 @@ export default function ConfigPage() {
                   {tooDark && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[9px] font-black border border-[#0d1f38] pointer-events-none">
                       !
+                    </span>
+                  )}
+                  {!tooDark && dupe && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center text-white text-[9px] font-black border border-[#0d1f38] pointer-events-none">
+                      =
                     </span>
                   )}
                 </button>
@@ -159,6 +174,11 @@ export default function ConfigPage() {
           {config.colors.slice(0, config.numColors).some(isTooCloseToBackground) && (
             <p className="text-xs text-red-400/80 mt-2">
               Dark colors are auto-brightened when the game starts.
+            </p>
+          )}
+          {hasDuplicates && (
+            <p className="text-xs text-amber-400/80 mt-2">
+              Duplicate colors will look identical in the puzzle — each color needs a unique shade.
             </p>
           )}
         </section>

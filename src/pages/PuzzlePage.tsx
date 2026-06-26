@@ -256,6 +256,17 @@ function AnimatedBottle({
 
 // ── PuzzlePage ─────────────────────────────────────────────────────────────────
 
+function calcBottleWidth(numBottles: number, shape: BottleShape): number {
+  const dim     = getShapeDimensions(shape)
+  const numCols = Math.ceil(numBottles / 2)
+  const availW  = window.innerWidth  - 48              // p-6 left + right
+  const availH  = window.innerHeight - 56 - 48         // header (~56px) + p-6 top + bottom
+  const fromW   = (availW - (numCols - 1) * 20) / numCols  // gap-x-5 between columns
+  const rowH    = (availH - 96 - 40) / 2              // gap-y-24 between rows, ~20px label per row
+  const fromH   = rowH * dim.vbW / dim.vbH
+  return Math.max(40, Math.min(90, Math.floor(Math.min(fromW, fromH))))
+}
+
 export default function PuzzlePage() {
   const { config } = useGame()
   const navigate   = useNavigate()
@@ -294,7 +305,13 @@ export default function PuzzlePage() {
     bottleRefs.current.get(idx)?.getBoundingClientRect() ?? null
   , [])
 
-  const bottleWidth = 62
+  const [bottleWidth, setBottleWidth] = useState(() => calcBottleWidth(tubes.length, config.bottleShape))
+
+  useEffect(() => {
+    function update() { setBottleWidth(calcBottleWidth(tubes.length, config.bottleShape)) }
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [tubes.length, config.bottleShape])
 
   return (
     <div className="min-h-screen flex flex-col">
