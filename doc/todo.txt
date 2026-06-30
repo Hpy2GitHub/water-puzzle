@@ -1,0 +1,3 @@
+1) put the cap on the finished bottle after the pouring animation finishes
+2) use math to make amounts more realistic. right now a big amount in a bottom flask fills a tiny neck area.
+3) first 3 controls are too dark to read; light bulb and speaker are ok)

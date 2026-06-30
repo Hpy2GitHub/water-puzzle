@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { useGame } from '../context/GameContext'
 import { useGameState, type PourEvent } from '../hooks/useGameState'
@@ -7,6 +7,7 @@ import { Bottle, getShapeDimensions } from '../components/bottles/BottleShapes'
 import { findHint } from '../utils/gameLogic'
 import type { Tube, BottleShape } from '../types/game'
 import type { HintRole } from '../components/bottles/BottleShapes'
+import { saveHistoryEntry } from '../utils/gameHistory'
 
 const POUR_PIVOT_Y_PCT  = 3   // rotation pivot — keeps neck over destination during tip
 const JOINT_OFFSET_PX   = 20  // shifts stream bottom + fill-line top together (px into bottle)
@@ -270,19 +271,44 @@ function calcBottleWidth(numBottles: number, shape: BottleShape): number {
 export default function PuzzlePage() {
   const { config } = useGame()
   const navigate   = useNavigate()
+  const location   = useLocation()
+
+  const replayTubes = (location.state as { tubes?: Tube[] } | null)?.tubes
+
+  // Clear replay state from history so a page refresh doesn't reload the same puzzle
+  useEffect(() => {
+    if (replayTubes) navigate(location.pathname, { replace: true, state: null })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const {
     tubes, selectedIndex, moveCount, isSolved,
-    hintIndices, lastPour,
+    hintIndices, lastPour, initialTubesRef,
     handleTubeClick, undo, reset, newGame, showHint, sounds,
-  } = useGameState(config)
+  } = useGameState(config, replayTubes)
 
   const [muted, setMuted] = useState(false)
   const [viewingSolution, setViewingSolution] = useState(false)
 
-  // Show the panel fresh each time a new puzzle is solved
+  // Track whether the current game's win has been saved to avoid double-recording
+  const savedWinRef = useRef(false)
+
+  // Record win and show panel on solve
   useEffect(() => {
-    if (isSolved) setViewingSolution(false)
-  }, [isSolved])
+    if (isSolved && !savedWinRef.current) {
+      savedWinRef.current = true
+      saveHistoryEntry(config, initialTubesRef.current, moveCount, 'won')
+      setViewingSolution(false)
+    }
+  }, [isSolved]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Wrap newGame to record abandonment and reset the saved-win flag
+  const handleNewGame = useCallback((fromTubes?: Tube[]) => {
+    if (!isSolved && moveCount > 0) {
+      saveHistoryEntry(config, initialTubesRef.current, moveCount, 'abandoned')
+    }
+    savedWinRef.current = false
+    newGame(undefined, fromTubes)
+  }, [isSolved, moveCount, config, initialTubesRef, newGame])
 
   const bottleRefs    = useRef<Map<number, HTMLElement>>(new Map())
   const pourPausedRef = useRef(false)
@@ -328,10 +354,11 @@ export default function PuzzlePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <IconButton onClick={undo}         title="Undo"            disabled={moveCount === 0}>↩</IconButton>
-          <IconButton onClick={reset}        title="Restart"         disabled={moveCount === 0}>⟳</IconButton>
-          <IconButton onClick={() => newGame()} title="New game">⊞</IconButton>
-          <IconButton onClick={showHint}     title="Hint">💡</IconButton>
+          <IconButton onClick={undo}                title="Undo"     disabled={moveCount === 0}>↩</IconButton>
+          <IconButton onClick={reset}               title="Restart"  disabled={moveCount === 0}>⟳</IconButton>
+          <IconButton onClick={() => handleNewGame()} title="New game">⊞</IconButton>
+          <IconButton onClick={showHint}            title="Hint">💡</IconButton>
+          <IconButton onClick={() => navigate('/history')} title="History">📋</IconButton>
           <IconButton onClick={() => setMuted(sounds.toggleMute())} title={muted ? 'Unmute' : 'Mute'}>
             {muted ? '🔇' : '🔊'}
           </IconButton>
@@ -401,7 +428,7 @@ export default function PuzzlePage() {
               <h2 className="text-2xl font-black text-white mb-1">Solved!</h2>
               <p className="text-blue-300/70 text-sm mb-6">{moveCount} {moveCount === 1 ? 'move' : 'moves'}</p>
               <div className="flex flex-col gap-2">
-                <button onClick={() => newGame()}
+                <button onClick={() => handleNewGame()}
                   className="w-full py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-cyan-900/30">
                   New Game
                 </button>
@@ -428,7 +455,7 @@ function IconButton({ onClick, title, disabled = false, children }: {
 }) {
   return (
     <button onClick={onClick} title={title} disabled={disabled}
-      className="w-8 h-8 flex items-center justify-center rounded-lg text-base
+      className="w-8 h-8 flex items-center justify-center rounded-lg text-base text-white
                  bg-white/10 border border-white/15
                  hover:bg-white/20 hover:border-white/25
                  disabled:opacity-25 disabled:cursor-not-allowed transition-colors">

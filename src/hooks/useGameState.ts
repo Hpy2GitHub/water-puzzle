@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, type MutableRefObject } from 'react'
 import type { GameConfig, Tube } from '../types/game'
 import { canPour, pour, isPuzzleSolved, findHint, getTopColor, getTopRunLength } from '../utils/gameLogic'
 import { generatePuzzle } from '../utils/puzzleGenerator'
@@ -21,17 +21,23 @@ export interface GameStateReturn {
   isSolved: boolean
   hintIndices: [number, number] | null
   lastPour: PourEvent | null
+  initialTubesRef: MutableRefObject<Tube[]>
   handleTubeClick: (index: number) => void
   undo: () => void
   reset: () => void
-  newGame: (cfg?: GameConfig) => void
+  newGame: (cfg?: GameConfig, fromTubes?: Tube[]) => void
   showHint: () => void
   clearHint: () => void
   sounds: ReturnType<typeof useSounds>
 }
 
-export function useGameState(initialConfig: GameConfig): GameStateReturn {
-  const [tubes, setTubes] = useState<Tube[]>(() => generatePuzzle(initialConfig))
+export function useGameState(initialConfig: GameConfig, fromTubes?: Tube[]): GameStateReturn {
+  const initialTubesRef = useRef<Tube[]>([])
+  const [tubes, setTubes] = useState<Tube[]>(() => {
+    const initial = fromTubes ?? generatePuzzle(initialConfig)
+    initialTubesRef.current = initial
+    return initial
+  })
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [moveCount, setMoveCount] = useState(0)
   const [history, setHistory] = useState<Tube[][]>([])
@@ -117,8 +123,10 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
     setMoveCount(0)
   }, [history])
 
-  const newGame = useCallback((cfg?: GameConfig) => {
-    setTubes(generatePuzzle(cfg ?? initialConfig))
+  const newGame = useCallback((cfg?: GameConfig, fromTubes?: Tube[]) => {
+    const nextPuzzle = fromTubes ?? generatePuzzle(cfg ?? initialConfig)
+    initialTubesRef.current = nextPuzzle
+    setTubes(nextPuzzle)
     setHistory([])
     setSelectedIndex(null)
     setHintIndices(null)
@@ -133,7 +141,7 @@ export function useGameState(initialConfig: GameConfig): GameStateReturn {
   const clearHint = useCallback(() => setHintIndices(null), [])
 
   return {
-    tubes, selectedIndex, moveCount, isSolved, hintIndices, lastPour,
+    tubes, selectedIndex, moveCount, isSolved, hintIndices, lastPour, initialTubesRef,
     handleTubeClick, undo, reset, newGame, showHint, clearHint, sounds,
   }
 }

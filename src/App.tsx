@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { GameProvider } from './context/GameContext'
 import ConfigPage from './pages/ConfigPage'
 import PuzzlePage from './pages/PuzzlePage'
+import HistoryPage from './pages/HistoryPage'
 
 const BUBBLES = [
   { id: 0,  size: 10, left: 6,  bottom: 8,  delay: 0,   dur: 10 },
@@ -79,6 +80,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ConfigPage />} />
           <Route path="/puzzle" element={<PuzzlePage />} />
+          <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
