@@ -9,9 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "deploy-local": "npm run build && rsync -a --delete dist/ /mnt/d/Apache/html/sandbox/water-puzzle/",
+    "deploy": "echo 'Deploy is automatic: commit and push to master, and GitHub Actions will build and publish to GitHub Pages.'",
     "format": "prettier --write src/",
     "test": "vitest",
     "test:run": "vitest run"
@@ -35,7 +34,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint-config-prettier": "10.1.8",
-    "gh-pages": "6.3.0",
     "jsdom": "29.1.1",
     "oxlint": "^1.69.0",
     "prettier": "3.8.4",
