@@ -18,11 +18,10 @@ export function getTopRunLength(tube: Tube): number {
 }
 
 export function canPour(from: Tube, to: Tube, allowMismatch = false): boolean {
-  if (from.segments.length === 0) { console.log('[canPour] false — source empty'); return false }
-  if (to.segments.length >= to.capacity) { console.log('[canPour] false — dest full'); return false }
+  if (from.segments.length === 0) return false
+  if (to.segments.length >= to.capacity) return false
   const toTop = getTopColor(to)
-  if (toTop === null) { console.log('[canPour] true — dest empty'); return true }
-  console.log('[canPour] allowMismatch =', allowMismatch, '| fromTop =', getTopColor(from), '| toTop =', toTop)
+  if (toTop === null) return true
   if (allowMismatch) return true
   return toTop === getTopColor(from)
 }
@@ -45,9 +44,9 @@ export function pour(tubes: Tube[], fromIdx: number, toIdx: number): Tube[] {
 }
 
 export function isTubeSolved(tube: Tube): boolean {
-  if (tube.segments.length === 0) return true                      // empty is fine
-  if (tube.segments.length !== tube.capacity) return false         // must be full
-  return new Set(tube.segments).size === 1                         // all one color
+  if (tube.segments.length === 0) return true
+  if (tube.segments.length !== tube.capacity) return false
+  return new Set(tube.segments).size === 1
 }
 
 export function isPuzzleSolved(tubes: Tube[]): boolean {
@@ -78,7 +77,9 @@ export function findHint(tubes: Tube[], allowMismatch = false): [number, number]
       let score = 1
 
       // Strongly prefer moves that complete a destination tube
-      if (afterTo === tubes[to].capacity && new Set([...tubes[to].segments, tubes[from].segments[tubes[from].segments.length - 1]]).size === 1) {
+      const destWillBeFull = afterTo === tubes[to].capacity
+      const destWillBePure = new Set([...tubes[to].segments, tubes[from].segments[tubes[from].segments.length - 1]]).size === 1
+      if (destWillBeFull && destWillBePure) {
         score += 20
       }
 
@@ -88,8 +89,24 @@ export function findHint(tubes: Tube[], allowMismatch = false): [number, number]
       // Prefer moves into tubes that already have the same color (grouping)
       if (getTopColor(tubes[to]) !== null) score += 5
 
-      // Prefer pouring larger runs
+      // Prefer larger runs (more efficient)
       score += runLen
+
+      // Penalize pouring a small run into an empty tube when it won't fill it
+      const destIsEmpty = tubes[to].segments.length === 0
+      if (destIsEmpty && !destWillBeFull) {
+        score -= 5   // waste of space
+      }
+
+      // Penalize moves that leave the destination with mixed colors (unless it completes it)
+      if (!destWillBeFull && tubes[to].segments.length > 0) {
+        // Check if the new top color would be different from the existing top
+        const newTop = tubes[from].segments[tubes[from].segments.length - 1]
+        const existingTop = getTopColor(tubes[to])
+        if (existingTop !== null && newTop !== existingTop) {
+          score -= 3   // mixing colors is usually bad
+        }
+      }
 
       // Avoid moves from a single-color full tube (don't break completed tubes)
       if (isTubeSolved(tubes[from])) score -= 50

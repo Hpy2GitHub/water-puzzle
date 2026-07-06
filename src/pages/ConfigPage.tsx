@@ -7,7 +7,7 @@ import { type BottleShape, DEFAULT_COLORS } from '../types/game'
 import { isTooCloseToBackground, ensureContrast } from '../utils/colorUtils'
 
 const SHAPES: BottleShape[] = ['test-tube', 'flask', 'wine', 'beaker']
-const MIN_COLORS = 3
+const MIN_COLORS = 2
 const MAX_COLORS = 8
 
 export default function ConfigPage() {
@@ -16,22 +16,6 @@ export default function ConfigPage() {
 
   const [editingColorIndex, setEditingColorIndex] = useState(-1)
   const pickerRef = useRef<HTMLDivElement>(null)
-  const cardRef   = useRef<HTMLDivElement>(null)
-  const [zoom, setZoom] = useState(1)
-
-  useEffect(() => {
-    function update() {
-      const el = cardRef.current
-      if (!el) return
-      el.style.zoom = ''                            // reset so we measure natural height
-      const naturalH = el.scrollHeight
-      const available = window.innerHeight - 32    // subtract outer p-4 × 2
-      setZoom(naturalH > available ? available / naturalH : 1)
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
 
   useEffect(() => {
     if (editingColorIndex === -1) return
@@ -63,7 +47,6 @@ export default function ConfigPage() {
   }
 
   function handleStart() {
-    // Auto-brighten any active colors that would blend into the dark background
     const colors = config.colors.map((c, i) =>
       i < config.numColors ? ensureContrast(c) : c
     )
@@ -80,9 +63,35 @@ export default function ConfigPage() {
   const isDuplicate = (c: string) => (colorCounts[c] ?? 0) > 1
   const hasDuplicates = activeColors.some(isDuplicate)
 
+  // Color distance for similar color detection
+  function hexToRgb(hex: string): [number, number, number] {
+    const c = hex.replace('#', '')
+    return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)]
+  }
+
+  function colorDistance(hex1: string, hex2: string): number {
+    const [r1, g1, b1] = hexToRgb(hex1)
+    const [r2, g2, b2] = hexToRgb(hex2)
+    return Math.sqrt((r1-r2)**2 + (g1-g2)**2 + (b1-b2)**2)
+  }
+
+  function getSimilarPairs(colors: string[], threshold = 40): [number, number][] {
+    const pairs: [number, number][] = []
+    for (let i = 0; i < colors.length; i++) {
+      for (let j = i + 1; j < colors.length; j++) {
+        if (colorDistance(colors[i], colors[j]) < threshold) {
+          pairs.push([i, j])
+        }
+      }
+    }
+    return pairs
+  }
+
+  const similarPairs = getSimilarPairs(activeColors)
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div ref={cardRef} style={{ zoom }} className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] rounded-3xl shadow-2xl shadow-black/50 p-6 w-full max-w-md">
+    <div className="min-h-screen flex items-start justify-center p-4 overflow-y-auto">
+      <div className="relative bg-white/[0.06] backdrop-blur-xl border border-white/[0.12] rounded-3xl shadow-2xl shadow-black/50 p-6 w-full max-w-md my-8">
 
         {/* Header */}
         <h1 className="text-3xl font-black text-white text-center mb-1 tracking-tight">
@@ -108,7 +117,7 @@ export default function ConfigPage() {
           </div>
         </section>
 
-        {/* Color palette */}
+        {/* Color palette - Click to edit */}
         <section className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-blue-100/80">Colors (click to edit)</span>
@@ -178,7 +187,70 @@ export default function ConfigPage() {
           )}
           {hasDuplicates && (
             <p className="text-xs text-amber-400/80 mt-2">
-              Duplicate colors will look identical in the puzzle — each color needs a unique shade.
+              ⚠️ Duplicate colors will look identical in the puzzle — each color needs a unique shade.
+            </p>
+          )}
+          {similarPairs.length > 0 && (
+            <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-xs text-amber-300/80">
+                ⚠️ These colors look very similar:
+                {similarPairs.map(([i, j], idx) => (
+                  <span key={idx} className="inline-flex items-center gap-1 ml-1">
+                    <span className="inline-block w-3 h-3 rounded-full" style={{ background: activeColors[i] }} />
+                    <span className="text-[10px] text-amber-400/60">#{activeColors[i].replace('#', '').toUpperCase()}</span>
+                    <span className="text-amber-400/40">and</span>
+                    <span className="inline-block w-3 h-3 rounded-full" style={{ background: activeColors[j] }} />
+                    <span className="text-[10px] text-amber-400/60">#{activeColors[j].replace('#', '').toUpperCase()}</span>
+                  </span>
+                ))}
+                <span className="block mt-1 text-amber-400/60 text-[10px]">Try picking more distinct colors</span>
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Color Legend with Hex Values */}
+        <section className="mb-4 p-3 bg-white/5 rounded-xl border border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-blue-100/80">Color Legend</span>
+            <span className="text-[10px] text-blue-300/40">Hex values</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {config.colors.slice(0, config.numColors).map((color, i) => {
+              const dupe = isDuplicate(color)
+              const similar = similarPairs.some(([a, b]) => a === i || b === i)
+              return (
+                <div 
+                  key={i} 
+                  className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
+                    dupe ? 'bg-amber-500/10 border border-amber-500/30' :
+                    similar ? 'bg-amber-500/5 border border-amber-500/20' :
+                    'bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className="text-[10px] font-mono text-blue-300/40 w-5 text-right">
+                    {i + 1}
+                  </span>
+                  <span 
+                    className="inline-block w-5 h-5 rounded-full border border-white/10 shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-[10px] font-mono text-blue-200/60 flex-1">
+                    {color.toUpperCase()}
+                  </span>
+                  {dupe && (
+                    <span className="text-[10px] text-amber-400/80 font-bold">⚠️ DUPE</span>
+                  )}
+                  {similar && !dupe && (
+                    <span className="text-[10px] text-amber-400/60">⚠️ close</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {similarPairs.length > 0 && (
+            <p className="text-[10px] text-amber-400/60 mt-2 text-center">
+              💡 Colors that are too close (&lt; 40 RGB units) are flagged
             </p>
           )}
         </section>

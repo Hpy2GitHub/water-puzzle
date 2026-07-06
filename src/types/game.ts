@@ -21,14 +21,14 @@ export interface GameState {
 }
 
 export const DEFAULT_COLORS: string[] = [
-  '#14b8a6',
-  '#3b82f6',
-  '#6c2c2c',
-  '#7b827e',
-  '#7f31c9',
-  '#eab308',
-  '#ec4899',
-  '#ffffff',
+  '#22c55e',  // 1. GREEN
+  '#3b82f6',  // 2. BLUE
+  '#f97316',  // 3. ORANGE (will have a white dot)
+  '#7b827e',  // 4. GREY
+  '#7f31c9',  // 5. PURPLE
+  '#eab308',  // 6. YELLOW
+  '#ffffff',  // 7. WHITE
+  '#ef4444',  // 8. RED
 ]
 
 export const DEFAULT_CONFIG: GameConfig = {

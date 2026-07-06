@@ -1,0 +1,3 @@
+20260704-203903-ConfigPage.tsx.disabled: before deepseek legend
+20260706-122634-ConfigPage.tsx.disabled: with deepseek palette
+20260706-135024-ConfigPage.tsx.disabled: removed sizing constraints

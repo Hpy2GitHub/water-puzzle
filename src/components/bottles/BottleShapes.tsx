@@ -78,6 +78,12 @@ interface BottleProps {
   drainColor?: string
 }
 
+// Helper: check if a color should show a dot
+function shouldShowDot(color: string): boolean {
+  const dotColors = ['#f97316', '#fb8c00', '#ff6b00', '#ff4500']
+  return dotColors.includes(color.toLowerCase())
+}
+
 export function Bottle({ shape, segments, capacity, isSelected = false, hintRole, onClick, width = 60, drainAmount, drainColor }: BottleProps) {
   const def = SHAPES[shape]
   const [_vbX, _vbY, vbW, vbH] = def.viewBox.split(' ').map(Number)
@@ -114,16 +120,34 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
 
       {/* Liquid segments — clipped to bottle shape, rendered bottom-up */}
       <g clipPath={`url(#${clipId})`}>
-        {segments.map((color, i) => (
-          <rect
-            key={i}
-            x={def.liquidLeft}
-            y={def.liquidBot - (i + 1) * segmentH}
-            width={liquidWidth}
-            height={segmentH}
-            fill={color}
-          />
-        ))}
+        {segments.map((color, i) => {
+          const y = def.liquidBot - (i + 1) * segmentH
+          const showDot = shouldShowDot(color)
+          
+          return (
+            <g key={i}>
+              {/* Base color segment */}
+              <rect
+                x={def.liquidLeft}
+                y={y}
+                width={liquidWidth}
+                height={segmentH}
+                fill={color}
+              />
+              
+              {/* White dot on colors that need it */}
+              {showDot && (
+                <circle
+                  cx={def.liquidLeft + liquidWidth / 2}
+                  cy={y + segmentH / 2}
+                  r={Math.min(liquidWidth, segmentH) / 6}
+                  fill="white"
+                  opacity={0.9}
+                />
+              )}
+            </g>
+          )
+        })}
       </g>
 
       {/* Drain animation — poured segments shrinking out toward the opening */}
@@ -140,6 +164,16 @@ export function Bottle({ shape, segments, capacity, isSelected = false, hintRole
             transition={{ delay: 0.72, duration: 0.42, ease: 'easeIn' }}
             style={{ transformOrigin: '50% 0%' }}
           />
+          {/* Dot on drain animation if needed */}
+          {shouldShowDot(drainColor) && (
+            <circle
+              cx={def.liquidLeft + liquidWidth / 2}
+              cy={def.liquidBot - (segments.length + drainAmount / 2) * segmentH}
+              r={Math.min(liquidWidth, segmentH) / 6}
+              fill="white"
+              opacity={0.9}
+            />
+          )}
         </g>
       )}
 
