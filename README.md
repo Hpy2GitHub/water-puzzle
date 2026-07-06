@@ -1,5 +1,6 @@
 # water-puzzle
 
+
 > Water sort puzzle game — sort colored liquid into matching bottles.
 
 ## Development
@@ -19,3 +20,5 @@
 - GitHub Pages: https://Hpy2GitHub.github.io/water-puzzle
 - Local Apache: http://localhost/sandbox/water-puzzle/
 # test
+
+Now with a . on the orange
