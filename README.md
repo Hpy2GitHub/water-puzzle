@@ -1,5 +1,6 @@
 # water-puzzle
 
+# NOTE: This is in it's own repo so github will deploy it as a website and the flutter app will pull it down
 
 > Water sort puzzle game — sort colored liquid into matching bottles.
 
